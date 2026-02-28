@@ -1,0 +1,38 @@
+[general]
+default_gif = "/default.gif"
+color = "FFFFFF"
+
+[busy]
+emoji = "busy.png"
+id = "1231"
+gif = "/busy.gif"
+text = "Busy"
+color = "F22F07"
+
+[coffee]
+emoji = "coffee.png"
+id = "1232"
+gif = "/coffee.gif"
+text = "Coffee"
+color = "723B04"
+
+[focus]
+emoji = "focus.png"
+id = "1233"
+gif = "/focus.gif"
+text = "Focus"
+color = "074DF2"
+
+[call]
+emoji = "phone.png"
+id = "1234"
+gif = "/call.gif"
+text = "On call"
+color = "8807F2"
+
+[lunch]
+emoji = "lunch.png"
+id = "1235"
+gif = "/lunch.gif"
+text = "Lunch time"
+color = "8807F2"

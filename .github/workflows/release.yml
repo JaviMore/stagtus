@@ -1,0 +1,122 @@
+name: Release stagtus_desktop
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to build from'
+        required: false
+        default: 'main'
+      tag_name:
+        description: 'Tag / release name (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Build matrix (one native build per OS) ──────────────────────────
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux-amd64
+            binary: stagtus
+            ldflags: '-s -w'
+            pre_install: |
+              sudo apt-get update
+              sudo apt-get install -y libgl1-mesa-dev xorg-dev zip
+          - os: macos-latest
+            label: darwin-arm64
+            binary: stagtus
+            ldflags: '-s -w'
+            pre_install: ''
+          - os: windows-latest
+            label: windows-amd64
+            binary: stagtus.exe
+            ldflags: '-H=windowsgui -s -w'
+            pre_install: ''
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: stagtus_desktop/go.mod
+
+      - name: Install build dependencies
+        if: matrix.pre_install != ''
+        shell: bash
+        run: ${{ matrix.pre_install }}
+
+      - name: Build binary
+        working-directory: stagtus_desktop
+        shell: bash
+        run: |
+          set -e
+          CGO_ENABLED=1 go build -ldflags="${{ matrix.ldflags }}" -o ${{ matrix.binary }} .
+
+      - name: Package zip
+        working-directory: stagtus_desktop
+        shell: bash
+        run: |
+          set -e
+          ARTIFACT="stagtus-${{ github.event.inputs.tag_name }}-${{ matrix.label }}.zip"
+          mkdir -p _pkg
+          cp ${{ matrix.binary }} config.toml _pkg/
+          cd _pkg
+          if command -v zip &>/dev/null; then
+            zip "../${ARTIFACT}" *
+          else
+            7z a "../${ARTIFACT}" *
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stagtus-${{ matrix.label }}
+          path: stagtus_desktop/stagtus-${{ github.event.inputs.tag_name }}-${{ matrix.label }}.zip
+
+  # ── Create GitHub Release ───────────────────────────────────────────
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (needed for tag creation)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+
+      - name: Create and push tag
+        run: |
+          TAG="${{ github.event.inputs.tag_name }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag -a "$TAG" -m "Release $TAG"
+          fi
+          git push origin "$TAG" || true
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.event.inputs.tag_name }}
+          name: "Release ${{ github.event.inputs.tag_name }}"
+          commit: ${{ github.event.inputs.branch }}
+          artifacts: "artifacts/*.zip"
+          makeLatest: true
