@@ -62,6 +62,7 @@ bool config_load(config_t *cfg)
     memset(cfg, 0, sizeof(config_t));
     cfg->count = 0;
     cfg->default_color = 0xFFFFFF;  /* white fallback */
+    cfg->default_led_color = cfg->default_color; /* inherit text color by default */
     strncpy(cfg->default_gif, "/busy.gif", MAX_GIF_PATH_LEN); /* fallback */
 
     File file = SD.open(CONFIG_FILE_PATH, FILE_READ);
@@ -110,6 +111,7 @@ bool config_load(config_t *cfg)
                     memset(&cfg->commands[current_cmd], 0, sizeof(command_entry_t));
                     strncpy(cfg->commands[current_cmd].name, section_name, MAX_CMD_NAME_LEN - 1);
                     cfg->commands[current_cmd].color = cfg->default_color; /* inherit default */
+                    cfg->commands[current_cmd].led_color = cfg->default_led_color; /* inherit default */
                 } else {
                     printf("[config] WARNING: max commands (%d) reached, ignoring [%s]\n",
                            MAX_COMMANDS, section_name);
@@ -135,6 +137,9 @@ bool config_load(config_t *cfg)
             else if (strcasecmp(key, "color") == 0) {
                 cfg->default_color = strtoul(value, NULL, 16);
             }
+            else if (strcasecmp(key, "led") == 0) {
+                cfg->default_led_color = strtoul(value, NULL, 16);
+            }
             /* Add more [general] keys here in the future */
         }
         else if (current_cmd >= 0) {
@@ -149,6 +154,9 @@ bool config_load(config_t *cfg)
             }
             else if (strcasecmp(key, "color") == 0) {
                 cfg->commands[current_cmd].color = strtoul(value, NULL, 16);
+            }
+            else if (strcasecmp(key, "led") == 0) {
+                cfg->commands[current_cmd].led_color = strtoul(value, NULL, 16);
             }
         }
     }
@@ -170,14 +178,18 @@ const command_entry_t *config_find_by_id(const config_t *cfg, int id)
 
 void config_print(const config_t *cfg)
 {
-    printf("[config] default_gif = %s  default_color = #%06X\n", cfg->default_gif, (unsigned int)cfg->default_color);
+    printf("[config] default_gif = %s  default_color = #%06X  default_led = #%06X\n",
+           cfg->default_gif,
+           (unsigned int)cfg->default_color,
+           (unsigned int)cfg->default_led_color);
     printf("[config] Commands:\n");
     for (int i = 0; i < cfg->count; i++) {
-        printf("  [%s]  id=%d  gif=%s  text=\"%s\"  color=#%06X\n",
+        printf("  [%s]  id=%d  gif=%s  text=\"%s\"  color=#%06X  led=#%06X\n",
                cfg->commands[i].name,
                cfg->commands[i].id,
                cfg->commands[i].gif,
                cfg->commands[i].text,
-               (unsigned int)cfg->commands[i].color);
+               (unsigned int)cfg->commands[i].color,
+               (unsigned int)cfg->commands[i].led_color);
     }
 }

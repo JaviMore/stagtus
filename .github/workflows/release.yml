@@ -1,204 +1,29 @@
-name: Release stagtus_desktop
+name: Release Stagtus Web
 
 on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to build from'
-        required: false
-        default: 'main'
-      tag_name:
-        description: 'Tag / release name (e.g. v1.0.0)'
-        required: true
+  release:
+    types: [published]
 
 permissions:
   contents: write
 
 jobs:
-  # ── Build matrix (one native build per OS) ──────────────────────────
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            label: linux-amd64
-            binary: stagtus
-            ldflags: '-s -w'
-            pre_install: |
-              sudo apt-get update
-              sudo apt-get install -y libgl1-mesa-dev xorg-dev zip
-          - os: macos-latest
-            label: darwin-arm64
-            binary: stagtus
-            ldflags: '-s -w'
-            pre_install: ''
-          - os: windows-latest
-            label: windows-amd64
-            binary: stagtus.exe
-            ldflags: '-H=windowsgui -s -w'
-            pre_install: ''
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: stagtus_desktop/go.mod
-
-      - name: Install build dependencies
-        if: matrix.pre_install != ''
-        shell: bash
-        run: ${{ matrix.pre_install }}
-
-      - name: Embed icon in Windows binary
-        if: matrix.os == 'windows-latest'
-        working-directory: stagtus_desktop
-        shell: bash
-        run: |
-          go install github.com/akavel/rsrc@latest
-          rsrc -ico stagtus.ico -o rsrc.syso
-
-      - name: Build binary
-        working-directory: stagtus_desktop
-        shell: bash
-        run: |
-          set -e
-          CGO_ENABLED=1 go build -ldflags="${{ matrix.ldflags }}" -o ${{ matrix.binary }} .
-
-      - name: Package macOS .app bundle
-        if: matrix.os == 'macos-latest'
-        working-directory: stagtus_desktop
-        shell: bash
-        run: |
-          set -e
-          ARTIFACT="stagtus-${{ github.event.inputs.tag_name }}-${{ matrix.label }}.zip"
-
-          # ── Generate .icns from stagtus.png ──
-          ICONSET="stagtus.iconset"
-          mkdir -p "$ICONSET"
-          SRC="images/stagtus.png"
-          for SIZE in 16 32 64 128 256 512; do
-            sips -z $SIZE $SIZE "$SRC" --out "${ICONSET}/icon_${SIZE}x${SIZE}.png" >/dev/null
-          done
-          # Retina variants
-          for SIZE in 32 64 128 256 512; do
-            HALF=$((SIZE / 2))
-            cp "${ICONSET}/icon_${SIZE}x${SIZE}.png" "${ICONSET}/icon_${HALF}x${HALF}@2x.png"
-          done
-          iconutil -c icns "$ICONSET" -o stagtus.icns
-
-          # ── Build Stagtus.app bundle ──
-          APP="Stagtus.app"
-          mkdir -p "${APP}/Contents/MacOS" "${APP}/Contents/Resources"
-          cp stagtus "${APP}/Contents/MacOS/stagtus"
-          cp stagtus.icns "${APP}/Contents/Resources/stagtus.icns"
-          cat > "${APP}/Contents/Info.plist" <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleName</key>            <string>Stagtus</string>
-            <key>CFBundleDisplayName</key>     <string>Stagtus</string>
-            <key>CFBundleIdentifier</key>      <string>com.stagtus.desktop</string>
-            <key>CFBundleVersion</key>         <string>1.0</string>
-            <key>CFBundlePackageType</key>     <string>APPL</string>
-            <key>CFBundleExecutable</key>      <string>stagtus</string>
-            <key>CFBundleIconFile</key>        <string>stagtus</string>
-            <key>LSMinimumSystemVersion</key>  <string>11.0</string>
-            <key>LSUIElement</key>             <true/>
-          </dict>
-          </plist>
-          PLIST
-
-          # ── Zip: app bundle + config ──
-          mkdir -p _pkg
-          cp -R "$APP" _pkg/
-          cp config.toml _pkg/
-          cd _pkg
-          zip -r "../${ARTIFACT}" .
-
-      - name: Package Linux zip
-        if: matrix.os == 'ubuntu-latest'
-        working-directory: stagtus_desktop
-        shell: bash
-        run: |
-          set -e
-          ARTIFACT="stagtus-${{ github.event.inputs.tag_name }}-${{ matrix.label }}.zip"
-          mkdir -p _pkg
-          cp stagtus config.toml images/stagtus.png _pkg/
-
-          # .desktop file so users can install it with an icon
-          cat > _pkg/stagtus.desktop <<'DESKTOP'
-          [Desktop Entry]
-          Name=Stagtus
-          Comment=System tray status indicator
-          Exec=stagtus
-          Icon=stagtus
-          Type=Application
-          Categories=Utility;
-          DESKTOP
-
-          cd _pkg
-          zip "../${ARTIFACT}" *
-
-      - name: Package Windows zip
-        if: matrix.os == 'windows-latest'
-        working-directory: stagtus_desktop
-        shell: bash
-        run: |
-          set -e
-          ARTIFACT="stagtus-${{ github.event.inputs.tag_name }}-${{ matrix.label }}.zip"
-          mkdir -p _pkg
-          cp stagtus.exe config.toml _pkg/
-          cd _pkg
-          7z a "../${ARTIFACT}" *
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: stagtus-${{ matrix.label }}
-          path: stagtus_desktop/stagtus-${{ github.event.inputs.tag_name }}-${{ matrix.label }}.zip
-
-  # ── Create GitHub Release ───────────────────────────────────────────
-  release:
-    needs: build
+  attach-web-zip:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout (needed for tag creation)
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
 
-      - name: Create and push tag
+      - name: Build ZIP
         run: |
-          TAG="${{ github.event.inputs.tag_name }}"
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
-            git tag -a "$TAG" -m "Release $TAG"
-          fi
-          git push origin "$TAG" || true
+          cd stagtus_web
+          zip -r ../stagtus-web-${{ github.event.release.tag_name }}.zip . --exclude="*.zip"
 
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          merge-multiple: true
-
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.event.inputs.tag_name }}
-          name: "Release ${{ github.event.inputs.tag_name }}"
-          commit: ${{ github.event.inputs.branch }}
-          artifacts: "artifacts/*.zip"
-          makeLatest: true
+      - name: Upload to release
+        run: |
+          gh release upload ${{ github.event.release.tag_name }} \
+            stagtus-web-${{ github.event.release.tag_name }}.zip \
+            --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stagtus</title>
+  <link rel="icon" href="stagtus.ico" type="image/x-icon">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Background glow: two overlapping layers for crossfade on status change -->
+  <div class="bg-overlay" id="bg-a"></div>
+  <div class="bg-overlay" id="bg-b"></div>
+
+  <!-- Top ribbon: quick download links -->
+  <nav class="topbar" aria-label="Downloads">
+    <a href="stagtus-web.zip" download class="topbar-link">
+      <span class="tb-icon" aria-hidden="true">📦</span>
+      <span>Download Stagtus</span>
+    </a>
+    <span class="topbar-sep" aria-hidden="true"></span>
+    <a href="config.toml" download class="topbar-link">
+      <span class="tb-icon" aria-hidden="true">📄</span>
+      <span>Sample config</span>
+    </a>
+  </nav>
+
+  <div class="app">
+
+    <!-- Header: brand left · connect controls right -->
+    <header class="app-header">
+      <div class="header-brand">
+        <h1>Stagtus 😎</h1>
+      </div>
+      <div class="header-connect">
+        <div class="conn-status">
+          <span class="dot" id="conn-dot"></span>
+          <span id="conn-label" class="small muted">Not connected</span>
+        </div>
+        <button id="connect-btn" class="btn btn-primary" disabled>Connect</button>
+        <p id="no-serial-warning" class="no-serial-hint hidden">
+          Requires <strong>Chrome</strong> or <strong>Edge</strong>
+        </p>
+      </div>
+    </header>
+
+    <!-- Config bar: single row showing current config state -->
+    <div class="config-bar">
+      <div id="config-loaded-state" class="config-row hidden">
+        <div class="config-row-info">
+          <span class="badge badge-green">✓ Loaded</span>
+          <span id="config-summary" class="small muted"></span>
+        </div>
+        <button id="reload-config-btn" class="btn btn-ghost btn-sm">📂 Load new config.toml</button>
+      </div>
+      <div id="config-empty-state" class="config-row">
+        <span class="small muted">No configuration loaded.</span>
+        <label class="btn btn-primary btn-sm" for="config-file-input">📂 Load config.toml</label>
+        <input type="file" id="config-file-input" accept=".toml" class="sr-only">
+      </div>
+    </div>
+
+    <!-- Status grid: main content -->
+    <main class="status-main">
+      <div id="status-grid" class="status-grid">
+        <p class="muted hint-text">Load a configuration file to see available statuses.</p>
+      </div>
+      <div id="current-status-display" class="current-status-display hidden">
+        <span class="current-label">Currently:</span>
+        <span id="current-status-text" class="current-value"></span>
+      </div>
+    </main>
+
+    <footer>
+      <p>
+        Made with ❤️ by <a href="https://github.com/JaviMore/" target="_blank" rel="noopener">Javimore</a>
+        &nbsp;·&nbsp;
+        <a href="https://www.buymeacoffee.com/javimore" target="_blank" rel="noopener">Buy me a coffee</a> ☕
+      </p>
+    </footer>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

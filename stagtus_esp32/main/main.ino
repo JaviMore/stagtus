@@ -5,8 +5,21 @@
 #include "screens.h"
 #include "lv_sd_fs.h"
 #include "config_parser.h"
+#include <esp32-hal-rgb-led.h>
 
 static config_t app_config;
+
+#define RGB_CONTROL_PIN 8
+
+static void set_rgb_led_color(uint32_t color)
+{
+  uint8_t red = (color >> 16) & 0xFF;
+  uint8_t green = (color >> 8) & 0xFF;
+  uint8_t blue = color & 0xFF;
+
+  /* Most ESP32C6 onboard RGB LEDs use GRB channel order. */
+  neopixelWrite(RGB_CONTROL_PIN, green, red, blue);
+}
 
 void setup()
 {
@@ -27,6 +40,9 @@ void setup()
   set_gif_src(app_config.default_gif);
 
   ui_init();
+
+  set_bottom_text("Take my money!", app_config.default_color);
+  set_rgb_led_color(app_config.default_led_color);
 }
 
 void loop()
@@ -47,6 +63,7 @@ void loop()
         Serial.printf("Command: %s (id=%d)\n", entry->name, entry->id);
         set_gif_src(entry->gif);
         set_bottom_text(entry->text, entry->color);
+        set_rgb_led_color(entry->led_color);
       } else {
         Serial.printf("Unknown command id: %d\n", cmd);
       }

@@ -32,6 +32,7 @@ typedef struct {
     char gif[MAX_GIF_PATH_LEN];    /* Path on SD card, e.g. "/busy.gif" */
     char text[MAX_TEXT_LEN];       /* Bottom label text                */
     uint32_t color;                /* Text color as 0xRRGGBB           */
+    uint32_t led_color;            /* LED color as 0xRRGGBB            */
 } command_entry_t;
 
 /**
@@ -40,6 +41,7 @@ typedef struct {
 typedef struct {
     char default_gif[MAX_GIF_PATH_LEN];  /* From [general] default_gif  */
     uint32_t default_color;              /* From [general] color        */
+    uint32_t default_led_color;          /* From [general] led          */
     command_entry_t commands[MAX_COMMANDS];
     int count;                           /* Number of commands loaded   */
 } config_t;
